@@ -6,22 +6,25 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="АлёнаNails">
+  <meta name="application-name" content="АлёнаNails">
   <meta name="theme-color" content="#fff5f9">
   <title>АлёнаNails</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <link rel="icon" href="icon-192.png" type="image/png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app" data-mode="day">
+    <div id="appBanner" class="app-banner"></div>
+
     <header class="top-bar">
       <button id="prevBtn" class="icon-btn" aria-label="Назад">‹</button>
-      <div id="topBrand" class="top-brand"></div>
+      <div id="topSubtitle" class="top-subtitle"></div>
       <button id="monthBtn" class="month-btn" aria-label="Выбрать дату">📅</button>
       <button id="nextBtn" class="icon-btn" aria-label="Вперёд">›</button>
     </header>
-    <div id="topSubtitle" class="top-subtitle"></div>
 
     <div id="dayView" class="day-view">
       <div id="dayHeader" class="day-header-card"></div>
@@ -54,7 +57,7 @@
 
   <div id="installHint" class="install-hint hidden">
     <p>Safari → <strong>Поделиться</strong> → <strong>На экран «Домой»</strong></p>
-    <p class="hint-small">Название: <strong>АлёнаNails</strong></p>
+    <p class="hint-small">Название: <strong>АлёнаNails</strong> (замените если написано другое)</p>
     <button id="dismissHint" class="secondary-btn">Понятно</button>
   </div>
 

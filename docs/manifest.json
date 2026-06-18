@@ -1,19 +1,26 @@
 {
+  "id": "alenanails",
   "name": "АлёнаNails",
   "short_name": "АлёнаNails",
-  "description": "Ежедневник мастера маникюра",
+  "description": "АлёнаNails — записи мастера",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#fff5f9",
+  "background_color": "#ffffff",
   "theme_color": "#fff5f9",
   "orientation": "any",
   "lang": "ru",
   "icons": [
     {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "icon-512.png",
