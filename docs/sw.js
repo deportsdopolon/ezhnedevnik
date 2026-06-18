@@ -1,11 +1,11 @@
-const CACHE = 'ezhnedevnik-v4';
+const CACHE = 'ezhnedevnik-v5';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
-  './logo.svg',
+  './logo.png',
   './icon-192.png',
   './icon-512.png'
 ];
