@@ -1,12 +1,13 @@
 {
-  "id": "alenanails",
+  "id": "alenanails-booking",
   "name": "АлёнаNails",
   "short_name": "АлёнаNails",
-  "description": "АлёнаNails — записи мастера",
-  "start_url": "./index.html",
+  "description": "АлёнаNails",
+  "start_url": "./index.html?app=alenanails",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#fff5f9",
+  "background_color": "#fff0f6",
+  "theme_color": "#fff0f6",
   "orientation": "any",
   "lang": "ru",
   "icons": [

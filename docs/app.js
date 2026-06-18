@@ -1,17 +1,16 @@
 const HOURS = Array.from({ length: 13 }, (_, i) => i + 8);
 const SERVICES = [
   { id: '', label: '—', price: 0 },
-  { id: 'm_ukr_1500', label: 'М+УКР', price: 1500 },
-  { id: 'mbp_600', label: 'МБП', price: 600 },
-  { id: 'm_ukr_1700', label: 'М+УКР', price: 1700 },
-  { id: 'yap_m_1000', label: 'ЯП.М', price: 1000 },
-  { id: 'pbp_700', label: 'ПБП', price: 700 },
-  { id: 'pbp_1400', label: 'ПБП', price: 1400 },
-  { id: 'pg_l_1400', label: 'П+Г.Л', price: 1400 },
-  { id: 'pg_l_1700', label: 'П+Г.Л', price: 1700 }
+  { id: 'm_ukr_1500', label: 'м+укр', price: 1500 },
+  { id: 'mbp_600', label: 'мбп', price: 600 },
+  { id: 'm_ukr_d_1700', label: 'м+укр+д', price: 1700 },
+  { id: 'yap_man_1000', label: 'Яп.ман', price: 1000 },
+  { id: 'ppbp_700', label: 'пПбп', price: 700 },
+  { id: 'psbp_1400', label: 'пСбп', price: 1400 },
+  { id: 'ppgl_1400', label: 'пП+г.л', price: 1400 },
+  { id: 'psgl_1700', label: 'пС+г.л', price: 1700 }
 ];
 const STORAGE_KEY = 'ezhnedevnik.entries.v4';
-const CONTACTS_KEY = 'ezhnedevnik.contacts';
 const HINT_KEY = 'ezhnedevnik.hint.dismissed';
 
 const WEEKDAYS_RU = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
@@ -71,7 +70,7 @@ function render() {
 }
 
 function bannerHTML() {
-  return `<img src="logo-banner.png?v=3" alt="АлёнаNails" class="banner-img">`;
+  return `<div class="banner-bg"><img src="logo-banner.png?v=4" alt="АлёнаNails" class="banner-img"></div>`;
 }
 
 function renderDayView() {
@@ -160,41 +159,19 @@ function createNameField(key, entry) {
   const wrap = document.createElement('div');
   wrap.className = 'name-wrap';
 
-  const form = document.createElement('form');
-  form.className = 'client-form';
-  form.autocomplete = 'on';
-  form.addEventListener('submit', (e) => e.preventDefault());
-
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
-  nameInput.name = 'client-name';
   nameInput.className = 'name-input';
-  nameInput.placeholder = 'Имя';
-  nameInput.autocomplete = 'name';
+  nameInput.placeholder = 'Имя / фамилия';
   nameInput.autocapitalize = 'words';
   nameInput.value = entry.contactName || '';
 
   const phoneInput = document.createElement('input');
   phoneInput.type = 'tel';
-  phoneInput.name = 'client-tel';
   phoneInput.className = 'phone-input';
-  phoneInput.placeholder = 'Тел.';
-  phoneInput.autocomplete = 'tel';
+  phoneInput.placeholder = 'Телефон';
   phoneInput.inputMode = 'tel';
   phoneInput.value = entry.contactPhone || '';
-
-  const suggestions = document.createElement('ul');
-  suggestions.className = 'name-suggestions hidden';
-
-  const pickBtn = document.createElement('button');
-  pickBtn.type = 'button';
-  pickBtn.className = 'pick-btn-small';
-  pickBtn.textContent = '📇';
-  pickBtn.title = 'Из контактов iPhone';
-  pickBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
-    await pickContactForRow(key, nameInput, phoneInput, saveContact);
-  });
 
   const callBtn = document.createElement('button');
   callBtn.type = 'button';
@@ -209,108 +186,26 @@ function createNameField(key, entry) {
   }
 
   function saveContact() {
-    const name = nameInput.value.trim();
-    const phone = phoneInput.value.trim();
-    updateEntry(key, { contactName: name, contactPhone: phone });
-    if (name) saveToContactBook(name, phone);
+    updateEntry(key, {
+      contactName: nameInput.value.trim(),
+      contactPhone: phoneInput.value.trim()
+    });
     syncCallBtn();
   }
 
-  function selectContact(c) {
-    nameInput.value = c.name;
-    phoneInput.value = c.phone || '';
-    suggestions.classList.add('hidden');
-    saveContact();
-  }
-
-  function showSuggestions(query) {
-    const q = query.trim().toLowerCase();
-    if (q.length < 1) { suggestions.classList.add('hidden'); return; }
-    const matches = getAllContacts().filter((c) =>
-      c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q))
-    ).slice(0, 8);
-    if (!matches.length) { suggestions.classList.add('hidden'); return; }
-    suggestions.innerHTML = '';
-    matches.forEach((c) => {
-      const li = document.createElement('li');
-      li.innerHTML = `<strong>${escapeHtml(c.name)}</strong>${c.phone ? `<span>${escapeHtml(c.phone)}</span>` : ''}`;
-      const pick = (e) => { e.preventDefault(); selectContact(c); };
-      li.addEventListener('mousedown', pick);
-      li.addEventListener('touchstart', pick, { passive: false });
-      suggestions.appendChild(li);
-    });
-    suggestions.classList.remove('hidden');
-  }
-
-  nameInput.addEventListener('input', () => {
-    showSuggestions(nameInput.value);
-    updateEntry(key, { contactName: nameInput.value.trim() });
-  });
-  nameInput.addEventListener('focus', () => showSuggestions(nameInput.value));
-  nameInput.addEventListener('blur', () => {
-    setTimeout(() => suggestions.classList.add('hidden'), 250);
-    saveContact();
-  });
-
+  nameInput.addEventListener('input', () => updateEntry(key, { contactName: nameInput.value.trim() }));
+  nameInput.addEventListener('blur', saveContact);
   phoneInput.addEventListener('input', () => {
-    showSuggestions(phoneInput.value);
     updateEntry(key, { contactPhone: phoneInput.value.trim() });
     syncCallBtn();
   });
   phoneInput.addEventListener('blur', saveContact);
-  phoneInput.addEventListener('change', saveContact);
 
-  form.appendChild(nameInput);
-  form.appendChild(phoneInput);
-  wrap.appendChild(form);
-  wrap.appendChild(suggestions);
-  wrap.appendChild(pickBtn);
+  wrap.appendChild(nameInput);
+  wrap.appendChild(phoneInput);
   wrap.appendChild(callBtn);
   syncCallBtn();
   return wrap;
-}
-
-async function pickContactForRow(key, nameInput, phoneInput, saveContact) {
-  try {
-    if ('contacts' in navigator && navigator.contacts?.select) {
-      const result = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-      if (result?.length) {
-        const fullName = result[0].name?.[0] || '';
-        nameInput.value = fullName.split(/\s+/)[0] || fullName;
-        phoneInput.value = result[0].tel?.[0] || '';
-        saveContact();
-        showToast('Контакт добавлен');
-        return;
-      }
-    }
-  } catch { /* fallback */ }
-  showToast('Введите имя — iPhone подскажет из книги');
-  nameInput.focus();
-}
-
-function getAllContacts() {
-  const map = new Map();
-  try {
-    JSON.parse(localStorage.getItem(CONTACTS_KEY) || '[]').forEach((c) => {
-      if (c.name) map.set(c.name.toLowerCase(), c);
-    });
-  } catch { /* ignore */ }
-  Object.values(entries).forEach((e) => {
-    if (e.contactName) {
-      map.set(e.contactName.toLowerCase(), { name: e.contactName, phone: e.contactPhone || '' });
-    }
-  });
-  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-}
-
-function saveToContactBook(name, phone) {
-  let book = [];
-  try { book = JSON.parse(localStorage.getItem(CONTACTS_KEY) || '[]'); } catch { book = []; }
-  const idx = book.findIndex((c) => c.name.toLowerCase() === name.toLowerCase());
-  const item = { name, phone: phone || '' };
-  if (idx >= 0) book[idx] = item;
-  else book.push(item);
-  localStorage.setItem(CONTACTS_KEY, JSON.stringify(book));
 }
 
 function openMonthPicker() {
