@@ -5,34 +5,56 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Ежедневник">
-  <meta name="theme-color" content="#f7f7f5">
-  <title>Ежедневник</title>
+  <meta name="apple-mobile-web-app-title" content="АлёнаNails">
+  <meta name="theme-color" content="#fff5f9">
+  <title>АлёнаNails</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app" data-mode="day">
     <header class="top-bar">
-      <button id="prevBtn" class="icon-btn" aria-label="Предыдущий день">‹</button>
-      <div class="top-center">
-        <div id="monthTitle" class="month-title"></div>
-        <div id="dayTitle" class="day-title"></div>
-      </div>
-      <button id="nextBtn" class="icon-btn" aria-label="Следующий день">›</button>
+      <button id="prevBtn" class="icon-btn" aria-label="Назад">‹</button>
+      <div id="topBrand" class="top-brand"></div>
+      <button id="nextBtn" class="icon-btn" aria-label="Вперёд">›</button>
     </header>
+    <div id="topSubtitle" class="top-subtitle"></div>
 
     <div id="dayView" class="day-view">
       <div id="dayHeader" class="day-header-card"></div>
       <div id="hoursList" class="hours-list"></div>
     </div>
 
-    <div id="weekView" class="week-view hidden">
-      <div class="week-hint">Сведите 2 пальца — вся неделя · Нажмите на день — открыть</div>
-      <div id="weekGrid" class="week-overview"></div>
+    <div id="overviewView" class="overview-view hidden">
+      <div id="overviewHint" class="overview-hint"></div>
+      <div id="overviewGrid" class="overview-grid"></div>
     </div>
   </div>
+
+  <dialog id="contactSheet" class="contact-sheet">
+    <div class="sheet-inner">
+      <h3>Клиент</h3>
+      <p class="sheet-note" id="contactSheetNote"></p>
+      <button type="button" id="tryContactsBtn" class="primary-btn full-width">📇 Выбрать из контактов iPhone</button>
+      <label class="field">
+        <span>Имя</span>
+        <input id="sheetName" type="text" autocomplete="name" placeholder="Имя">
+      </label>
+      <label class="field">
+        <span>Телефон</span>
+        <input id="sheetPhone" type="tel" autocomplete="tel" placeholder="+7 ...">
+      </label>
+      <div class="sheet-actions">
+        <button type="button" id="sheetClearBtn" class="danger-btn">Очистить</button>
+        <button type="button" id="sheetCancelBtn" class="secondary-btn">Отмена</button>
+        <button type="button" id="sheetSaveBtn" class="primary-btn">Сохранить</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
 
   <div id="installHint" class="install-hint hidden">
     <p>Safari → <strong>Поделиться</strong> → <strong>На экран «Домой»</strong></p>

@@ -1,11 +1,11 @@
 {
-  "name": "Ежедневник",
-  "short_name": "Ежедневник",
-  "description": "Личный недельный планировщик",
+  "name": "АлёнаNails",
+  "short_name": "АлёнаNails",
+  "description": "Ежедневник мастера маникюра",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f2f2ef",
-  "theme_color": "#f7f7f5",
+  "background_color": "#fff5f9",
+  "theme_color": "#fff5f9",
   "orientation": "any",
   "lang": "ru",
   "icons": [
