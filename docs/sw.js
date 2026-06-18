@@ -1,4 +1,4 @@
-const CACHE = 'ezhnedevnik-v5';
+const CACHE = 'ezhnedevnik-v6';
 const ASSETS = [
   './',
   './index.html',

@@ -1,16 +1,17 @@
 const HOURS = Array.from({ length: 13 }, (_, i) => i + 8);
 const SERVICES = [
   { id: '', label: '—', price: 0 },
-  { id: 'm_ukr_1500', label: 'м+укр', price: 1500 },
-  { id: 'mbp_600', label: 'мбп', price: 600 },
-  { id: 'm_ukr_1700', label: 'м+укр', price: 1700 },
+  { id: 'm_ukr_1500', label: 'М+укр', price: 1500 },
+  { id: 'mbp_600', label: 'Мбп', price: 600 },
+  { id: 'm_ukr_1700', label: 'М+укр', price: 1700 },
   { id: 'yap_m_1000', label: 'Яп.м', price: 1000 },
-  { id: 'pbp_700', label: 'пбп', price: 700 },
-  { id: 'pbp_1400', label: 'пбп', price: 1400 },
-  { id: 'pg_l_1400', label: 'п+г.л', price: 1400 },
-  { id: 'pg_l_1700', label: 'п+г.л', price: 1700 }
+  { id: 'pbp_700', label: 'Пбп', price: 700 },
+  { id: 'pbp_1400', label: 'Пбп', price: 1400 },
+  { id: 'pg_l_1400', label: 'П+г.л', price: 1400 },
+  { id: 'pg_l_1700', label: 'П+г.л', price: 1700 }
 ];
-const STORAGE_KEY = 'ezhnedevnik.entries.v3';
+const STORAGE_KEY = 'ezhnedevnik.entries.v4';
+const CONTACTS_KEY = 'ezhnedevnik.contacts';
 const HINT_KEY = 'ezhnedevnik.hint.dismissed';
 
 const WEEKDAYS_RU = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
@@ -22,7 +23,7 @@ let entries = loadEntries();
 let selectedDate = new Date(today);
 let overviewStart = startOfWeek(selectedDate);
 let viewMode = 'day';
-let editingKey = null;
+let pickerMonth = new Date(today);
 
 const app = document.getElementById('app');
 const topBrand = document.getElementById('topBrand');
@@ -33,18 +34,18 @@ const overviewGrid = document.getElementById('overviewGrid');
 const overviewHint = document.getElementById('overviewHint');
 const dayView = document.getElementById('dayView');
 const overviewView = document.getElementById('overviewView');
-const contactSheet = document.getElementById('contactSheet');
-const sheetName = document.getElementById('sheetName');
-const sheetPhone = document.getElementById('sheetPhone');
-const contactSheetNote = document.getElementById('contactSheetNote');
+const monthPicker = document.getElementById('monthPicker');
+const pickerDays = document.getElementById('pickerDays');
+const pickerMonthTitle = document.getElementById('pickerMonthTitle');
 const toast = document.getElementById('toast');
 
 document.getElementById('prevBtn').addEventListener('click', () => navigate(-1));
 document.getElementById('nextBtn').addEventListener('click', () => navigate(1));
-document.getElementById('tryContactsBtn').addEventListener('click', () => tryNativeContacts(true));
-document.getElementById('sheetSaveBtn').addEventListener('click', saveFromSheet);
-document.getElementById('sheetClearBtn').addEventListener('click', clearFromSheet);
-document.getElementById('sheetCancelBtn').addEventListener('click', () => contactSheet.close());
+document.getElementById('monthBtn').addEventListener('click', openMonthPicker);
+document.getElementById('pickerPrevMonth').addEventListener('click', () => { pickerMonth = addMonths(pickerMonth, -1); renderMonthPicker(); });
+document.getElementById('pickerNextMonth').addEventListener('click', () => { pickerMonth = addMonths(pickerMonth, 1); renderMonthPicker(); });
+document.getElementById('pickerToday').addEventListener('click', () => selectPickerDate(today));
+document.getElementById('pickerClose').addEventListener('click', () => monthPicker.close());
 document.getElementById('dismissHint').addEventListener('click', () => {
   localStorage.setItem(HINT_KEY, '1');
   document.getElementById('installHint').classList.add('hidden');
@@ -63,14 +64,15 @@ if (!localStorage.getItem(HINT_KEY) && !window.navigator.standalone) {
 render();
 
 function render() {
-  topBrand.innerHTML = brandHTML('sm');
+  topBrand.innerHTML = brandHTML('header');
+  document.getElementById('monthBtn').textContent = capitalize(MONTHS_RU[selectedDate.getMonth()]).slice(0, 3);
   if (viewMode === 'day') renderDayView();
   else renderOverviewView();
 }
 
-function brandHTML(size = 'md') {
-  const cls = size === 'sm' ? 'brand-logo-sm' : size === 'lg' ? 'brand-logo-lg' : 'brand-logo-md';
-  return `<img src="logo.png" alt="АлёнаNails" class="brand-logo-img ${cls}">`;
+function brandHTML(size = 'header') {
+  const cls = size === 'header' ? 'brand-logo-header' : size === 'day' ? 'brand-logo-day' : 'brand-logo-header';
+  return `<img src="logo.png?v=2" alt="АлёнаNails" class="brand-logo-img ${cls}">`;
 }
 
 function renderDayView() {
@@ -79,11 +81,11 @@ function renderDayView() {
   overviewView.classList.add('hidden');
 
   const info = dayInfo(selectedDate);
-  topSubtitle.textContent = `${info.weekdayRu} · ${capitalize(MONTHS_RU[selectedDate.getMonth()])}`;
+  topSubtitle.textContent = `${info.weekdayRu} · ${capitalize(MONTHS_RU[selectedDate.getMonth()])} ${selectedDate.getFullYear()}`;
 
   dayHeader.innerHTML = `
     <div class="day-brand-bar">
-      ${brandHTML('lg')}
+      ${brandHTML('day')}
       <div class="day-number-big">${info.day}</div>
     </div>
   `;
@@ -97,7 +99,6 @@ function createHourRow(date, hour) {
   const entry = getEntry(key);
   const row = document.createElement('div');
   row.className = 'hour-row';
-  row.dataset.hourKey = key;
 
   const timeCol = document.createElement('div');
   timeCol.className = 'time-col';
@@ -118,136 +119,216 @@ function createHourRow(date, hour) {
 
   const clientCol = document.createElement('div');
   clientCol.className = 'client-col';
+  clientCol.appendChild(createNameField(key, entry));
 
-  if (entry.contactPhone) {
-    const callBtn = document.createElement('button');
-    callBtn.type = 'button';
-    callBtn.className = 'name-call-btn';
-    callBtn.textContent = entry.contactName || 'Звонок';
-    callBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      window.location.href = `tel:${normalizePhone(entry.contactPhone)}`;
-    });
-    let holdTimer = null;
-    callBtn.addEventListener('touchstart', () => {
-      holdTimer = setTimeout(() => openContactSheet(key), 600);
-    }, { passive: true });
-    callBtn.addEventListener('touchend', () => clearTimeout(holdTimer));
-    callBtn.addEventListener('touchmove', () => clearTimeout(holdTimer));
-    clientCol.appendChild(callBtn);
-  } else {
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.className = 'name-input';
-    nameInput.placeholder = 'Имя';
-    nameInput.autocomplete = 'name';
-    nameInput.value = entry.contactName || '';
-    nameInput.addEventListener('input', () => updateEntry(key, { contactName: nameInput.value.trim() }));
-    nameInput.addEventListener('blur', () => updateEntry(key, { contactName: nameInput.value.trim() }));
-    clientCol.appendChild(nameInput);
-  }
-
-  const pickBtn = document.createElement('button');
-  pickBtn.type = 'button';
-  pickBtn.className = 'pick-btn';
-  pickBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
-  pickBtn.title = 'Контакты';
-  pickBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    openContactSheet(key);
+  const priceInput = document.createElement('input');
+  priceInput.type = 'text';
+  priceInput.inputMode = 'numeric';
+  priceInput.className = 'price-input';
+  priceInput.placeholder = '₽';
+  priceInput.value = entry.price ? String(entry.price) : '';
+  priceInput.addEventListener('input', () => {
+    const val = priceInput.value.replace(/\D/g, '');
+    priceInput.value = val;
+    updateEntry(key, { price: val ? parseInt(val, 10) : '' });
   });
-  clientCol.appendChild(pickBtn);
-
-  const priceSpan = document.createElement('span');
-  priceSpan.className = 'price-tag';
-  priceSpan.textContent = formatPrice(entry.serviceId);
 
   const serviceSelect = document.createElement('select');
   serviceSelect.className = 'service-select';
   SERVICES.forEach((svc) => {
     const opt = document.createElement('option');
     opt.value = svc.id;
-    opt.textContent = svc.id ? `${svc.label} ${svc.price}` : '—';
+    opt.textContent = svc.label;
     serviceSelect.appendChild(opt);
   });
   serviceSelect.value = entry.serviceId || '';
   serviceSelect.addEventListener('change', () => {
-    updateEntry(key, { serviceId: serviceSelect.value });
-    priceSpan.textContent = formatPrice(serviceSelect.value);
+    const svc = SERVICES.find((s) => s.id === serviceSelect.value);
+    const patch = { serviceId: serviceSelect.value };
+    if (svc?.price && !priceInput.value) {
+      patch.price = svc.price;
+      priceInput.value = String(svc.price);
+    } else if (!serviceSelect.value) {
+      patch.price = '';
+      priceInput.value = '';
+    }
+    updateEntry(key, patch);
   });
 
   row.appendChild(timeCol);
   row.appendChild(clientCol);
-  row.appendChild(priceSpan);
+  row.appendChild(priceInput);
   row.appendChild(serviceSelect);
   return row;
 }
 
-function formatPrice(serviceId) {
-  const svc = SERVICES.find((s) => s.id === serviceId);
-  return svc?.price ? String(svc.price) : '';
-}
+function createNameField(key, entry) {
+  const wrap = document.createElement('div');
+  wrap.className = 'name-wrap';
 
-function serviceLabel(serviceId) {
-  const svc = SERVICES.find((s) => s.id === serviceId);
-  return svc?.id ? `${svc.label} ${svc.price}` : '';
-}
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'name-input';
+  nameInput.placeholder = 'Имя';
+  nameInput.autocomplete = 'name';
+  nameInput.autocapitalize = 'words';
+  nameInput.value = entry.contactName || '';
+  nameInput.setAttribute('enterkeyhint', 'done');
 
-function openContactSheet(key) {
-  editingKey = key;
-  const entry = getEntry(key);
-  sheetName.value = entry.contactName || '';
-  sheetPhone.value = entry.contactPhone || '';
-  contactSheetNote.textContent = contactsSupported()
-    ? 'Нажмите кнопку ниже или введите вручную'
-    : 'Введите имя и телефон. В поле телефона iPhone может подсказать контакты.';
-  contactSheet.showModal();
-}
+  const phoneInput = document.createElement('input');
+  phoneInput.type = 'tel';
+  phoneInput.className = 'phone-hidden';
+  phoneInput.autocomplete = 'tel';
+  phoneInput.tabIndex = -1;
+  phoneInput.value = entry.contactPhone || '';
 
-async function tryNativeContacts(showErrors) {
-  try {
-    if (!contactsSupported()) throw new Error('unsupported');
-    const result = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-    if (!result?.length) return false;
-    applyContact(result[0]);
-    contactSheet.close();
-    showToast('Контакт добавлен');
-    render();
-    return true;
-  } catch {
-    if (showErrors) {
-      showToast('Введите вручную — iPhone подскажет в поле телефона');
-      sheetPhone.focus();
+  const suggestions = document.createElement('ul');
+  suggestions.className = 'name-suggestions hidden';
+
+  const callBtn = document.createElement('button');
+  callBtn.type = 'button';
+  callBtn.className = 'call-btn hidden';
+  callBtn.innerHTML = '📞';
+  callBtn.title = 'Позвонить';
+
+  function syncCallBtn() {
+    const phone = phoneInput.value.trim();
+    if (phone && nameInput.value.trim()) {
+      callBtn.classList.remove('hidden');
+      callBtn.onclick = () => { window.location.href = `tel:${normalizePhone(phone)}`; };
+    } else {
+      callBtn.classList.add('hidden');
     }
-    return false;
+  }
+
+  function saveContact() {
+    const name = nameInput.value.trim();
+    const phone = phoneInput.value.trim();
+    updateEntry(key, { contactName: name, contactPhone: phone });
+    if (name) saveToContactBook(name, phone);
+    syncCallBtn();
+  }
+
+  function showSuggestions(query) {
+    const q = query.trim().toLowerCase();
+    if (q.length < 1) { suggestions.classList.add('hidden'); return; }
+    const matches = getAllContacts().filter((c) => c.name.toLowerCase().includes(q)).slice(0, 6);
+    if (!matches.length) { suggestions.classList.add('hidden'); return; }
+    suggestions.innerHTML = '';
+    matches.forEach((c) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<strong>${escapeHtml(c.name)}</strong>${c.phone ? `<span>${escapeHtml(c.phone)}</span>` : ''}`;
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        nameInput.value = c.name;
+        phoneInput.value = c.phone || '';
+        suggestions.classList.add('hidden');
+        saveContact();
+      });
+      suggestions.appendChild(li);
+    });
+    suggestions.classList.remove('hidden');
+  }
+
+  nameInput.addEventListener('input', () => {
+    showSuggestions(nameInput.value);
+    updateEntry(key, { contactName: nameInput.value.trim() });
+  });
+  nameInput.addEventListener('focus', () => showSuggestions(nameInput.value));
+  nameInput.addEventListener('blur', () => {
+    setTimeout(() => suggestions.classList.add('hidden'), 200);
+    saveContact();
+  });
+
+  phoneInput.addEventListener('change', saveContact);
+
+  syncCallBtn();
+  wrap.appendChild(nameInput);
+  wrap.appendChild(phoneInput);
+  wrap.appendChild(suggestions);
+  wrap.appendChild(callBtn);
+  return wrap;
+}
+
+function getAllContacts() {
+  const map = new Map();
+  try {
+    JSON.parse(localStorage.getItem(CONTACTS_KEY) || '[]').forEach((c) => {
+      if (c.name) map.set(c.name.toLowerCase(), c);
+    });
+  } catch { /* ignore */ }
+  Object.values(entries).forEach((e) => {
+    if (e.contactName) {
+      map.set(e.contactName.toLowerCase(), { name: e.contactName, phone: e.contactPhone || '' });
+    }
+  });
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+}
+
+function saveToContactBook(name, phone) {
+  let book = [];
+  try { book = JSON.parse(localStorage.getItem(CONTACTS_KEY) || '[]'); } catch { book = []; }
+  const idx = book.findIndex((c) => c.name.toLowerCase() === name.toLowerCase());
+  const item = { name, phone: phone || '' };
+  if (idx >= 0) book[idx] = item;
+  else book.push(item);
+  localStorage.setItem(CONTACTS_KEY, JSON.stringify(book));
+}
+
+function openMonthPicker() {
+  pickerMonth = new Date(selectedDate);
+  renderMonthPicker();
+  monthPicker.showModal();
+}
+
+function renderMonthPicker() {
+  const year = pickerMonth.getFullYear();
+  const month = pickerMonth.getMonth();
+  pickerMonthTitle.textContent = `${capitalize(MONTHS_RU[month])} ${year}`;
+  pickerDays.innerHTML = '';
+
+  const first = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const leading = (first.getDay() + 6) % 7;
+
+  for (let i = 0; i < leading; i += 1) {
+    const empty = document.createElement('span');
+    empty.className = 'picker-empty';
+    pickerDays.appendChild(empty);
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = new Date(year, month, day);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'picker-day';
+    if (isSameDay(date, selectedDate)) btn.classList.add('selected');
+    if (isToday(date)) btn.classList.add('today');
+    btn.textContent = day;
+    const count = getDayEntries(date).length;
+    if (count > 0) {
+      const dot = document.createElement('span');
+      dot.className = 'picker-dot';
+      dot.textContent = count;
+      btn.appendChild(dot);
+    }
+    btn.addEventListener('click', () => selectPickerDate(date));
+    pickerDays.appendChild(btn);
   }
 }
 
-function contactsSupported() {
-  return 'contacts' in navigator && typeof navigator.contacts?.select === 'function';
-}
-
-function applyContact(contact) {
-  const fullName = contact.name?.[0] || '';
-  const firstName = fullName.split(/\s+/)[0] || fullName;
-  updateEntry(editingKey, { contactName: firstName, contactPhone: contact.tel?.[0] || '' });
-}
-
-function saveFromSheet() {
-  const name = sheetName.value.trim();
-  const phone = sheetPhone.value.trim();
-  if (!name && !phone) delete entries[editingKey];
-  else updateEntry(editingKey, { contactName: name, contactPhone: phone });
-  contactSheet.close();
+function selectPickerDate(date) {
+  selectedDate = startOfDay(date);
+  overviewStart = startOfWeek(selectedDate);
+  viewMode = 'day';
+  monthPicker.close();
   render();
 }
 
-function clearFromSheet() {
-  delete entries[editingKey];
-  persistEntries();
-  contactSheet.close();
-  render();
+function addMonths(date, n) {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + n);
+  return d;
 }
 
 function bindMinutesInput(input, key) {
@@ -271,19 +352,15 @@ function renderOverviewView() {
 
   const weekCount = viewMode === 'fortnight' ? 2 : 4;
   const allDays = [];
-  for (let w = 0; w < weekCount; w += 1) {
-    allDays.push(...getWeekDays(addDays(overviewStart, w * 7)));
-  }
+  for (let w = 0; w < weekCount; w += 1) allDays.push(...getWeekDays(addDays(overviewStart, w * 7)));
 
-  if (viewMode === 'fortnight') {
-    topSubtitle.textContent = `2 недели · ${formatMonthRange(allDays)}`;
-    overviewHint.textContent = 'Сведите пальцы — 4 недели · Разведите — день · Нажмите на день';
-    overviewGrid.className = 'overview-grid fortnight';
-  } else {
-    topSubtitle.textContent = `4 недели · ${formatMonthRange(allDays)}`;
-    overviewHint.textContent = 'Разведите пальцы — 2 недели · Нажмите на день';
-    overviewGrid.className = 'overview-grid month';
-  }
+  topSubtitle.textContent = viewMode === 'fortnight'
+    ? `2 недели · ${formatMonthRange(allDays)}`
+    : `4 недели · ${formatMonthRange(allDays)}`;
+  overviewHint.textContent = viewMode === 'fortnight'
+    ? 'Сведите пальцы — 4 недели · Разведите — день · Нажмите на день'
+    : 'Разведите пальцы — 2 недели · Нажмите на день';
+  overviewGrid.className = `overview-grid ${viewMode}`;
 
   overviewGrid.innerHTML = '';
   for (let w = 0; w < weekCount; w += 1) {
@@ -303,12 +380,12 @@ function buildWeekBlock(weekStartDate) {
 
   const row5 = document.createElement('div');
   row5.className = 'week-row-five';
-  weekDays.slice(0, 5).forEach((date) => row5.appendChild(createDayCol(date)));
+  weekDays.slice(0, 5).forEach((d) => row5.appendChild(createDayCol(d)));
   block.appendChild(row5);
 
   const rowWE = document.createElement('div');
   rowWE.className = 'week-row-we';
-  weekDays.slice(5, 7).forEach((date) => rowWE.appendChild(createDayCol(date, true)));
+  weekDays.slice(5, 7).forEach((d) => rowWE.appendChild(createDayCol(d, true)));
   block.appendChild(rowWE);
 
   return block;
@@ -324,7 +401,8 @@ function createDayCol(date, isWeekend = false) {
     ? dayEntries.map(({ hour, entry }) => {
         const mins = entry.minutes ? `:${entry.minutes}` : '';
         const svc = entry.serviceId ? ` <i>${escapeHtml(serviceLabel(entry.serviceId))}</i>` : '';
-        return `<div class="slot-line"><b>${hour}${mins}</b> ${escapeHtml(entry.contactName)}${svc}</div>`;
+        const price = entry.price ? ` <em>${entry.price}</em>` : '';
+        return `<div class="slot-line"><b>${hour}${mins}</b> ${escapeHtml(entry.contactName)}${svc}${price}</div>`;
       }).join('')
     : '<span class="slot-empty">—</span>';
 
@@ -349,17 +427,21 @@ function createDayCol(date, isWeekend = false) {
 function getDayEntries(date) {
   return HOURS
     .map((hour) => ({ hour, entry: getEntry(entryKey(date, hour)) }))
-    .filter(({ entry }) => entry.contactName || entry.serviceId || entry.minutes);
+    .filter(({ entry }) => entry.contactName || entry.serviceId || entry.minutes || entry.price);
+}
+
+function serviceLabel(serviceId) {
+  return SERVICES.find((s) => s.id === serviceId)?.label || '';
 }
 
 function getEntry(key) {
-  return entries[key] || { minutes: '', contactName: '', contactPhone: '', serviceId: '' };
+  return entries[key] || { minutes: '', contactName: '', contactPhone: '', serviceId: '', price: '' };
 }
 
 function updateEntry(key, patch) {
   const next = { ...getEntry(key), ...patch };
   const empty = !next.contactName && !next.contactPhone && !next.serviceId &&
-    (next.minutes === '' || next.minutes == null);
+    !next.price && (next.minutes === '' || next.minutes == null);
   if (empty) delete entries[key];
   else entries[key] = next;
   persistEntries();
@@ -397,10 +479,7 @@ function setupPinchZoom() {
   let initialDistance = null;
   let triggered = false;
   app.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 2) {
-      initialDistance = touchDistance(e.touches[0], e.touches[1]);
-      triggered = false;
-    }
+    if (e.touches.length === 2) { initialDistance = touchDistance(e.touches[0], e.touches[1]); triggered = false; }
   }, { passive: true });
   app.addEventListener('touchmove', (e) => {
     if (e.touches.length !== 2 || initialDistance == null || triggered) return;
@@ -422,9 +501,7 @@ function touchDistance(a, b) {
   return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 }
 
-function normalizePhone(phone) {
-  return phone.replace(/[^\d+]/g, '');
-}
+function normalizePhone(phone) { return phone.replace(/[^\d+]/g, ''); }
 
 function startOfDay(date) {
   const d = new Date(date);
@@ -432,14 +509,11 @@ function startOfDay(date) {
   return d;
 }
 
-function getWeekDays(start) {
-  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-}
+function getWeekDays(start) { return Array.from({ length: 7 }, (_, i) => addDays(start, i)); }
 
 function startOfWeek(date) {
   const d = startOfDay(date);
-  const diff = d.getDay() === 0 ? -6 : 1 - d.getDay();
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() + (d.getDay() === 0 ? -6 : 1 - d.getDay()));
   return d;
 }
 
@@ -483,20 +557,20 @@ function loadEntries() {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     if (Object.keys(raw).length) return raw;
-    const old = JSON.parse(localStorage.getItem('ezhnedevnik.entries.v2') || '{}');
+    const old = JSON.parse(localStorage.getItem('ezhnedevnik.entries.v3') || '{}');
     const migrated = {};
     Object.entries(old).forEach(([key, val]) => {
+      const svc = SERVICES.find((s) => s.id === val.serviceId);
       migrated[key] = {
         minutes: val.minutes || '',
         contactName: val.contactName || '',
         contactPhone: val.contactPhone || '',
-        serviceId: ''
+        serviceId: val.serviceId || '',
+        price: svc?.price || ''
       };
     });
     return migrated;
-  } catch {
-    return {};
-  }
+  } catch { return {}; }
 }
 
 function persistEntries() {
