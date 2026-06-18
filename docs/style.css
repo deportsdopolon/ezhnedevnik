@@ -37,16 +37,18 @@ body {
 .app-banner {
   width: calc(100% + 20px);
   margin: 0 -10px 10px;
-  padding: 10px 12px;
-  background: linear-gradient(135deg, #fff0f6 0%, #fce4ee 45%, #fff5f9 100%);
-  border-bottom: 1px solid rgba(199, 59, 122, 0.12);
+  padding: 0;
+  background: #fff0f6;
+  border-bottom: 1px solid rgba(199, 59, 122, 0.15);
 }
 
 .banner-bg {
-  background: linear-gradient(180deg, #ffffff 0%, #fff8fb 100%);
-  border-radius: 14px;
-  padding: 10px 14px;
-  box-shadow: 0 2px 12px rgba(199, 59, 122, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.9);
+  background: #fff0f6;
+  padding: 12px 14px 14px;
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .banner-img {
@@ -55,6 +57,7 @@ body {
   max-height: 76px;
   object-fit: contain;
   display: block;
+  background: #fff0f6;
 }
 
 .top-bar {
