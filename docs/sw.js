@@ -1,4 +1,4 @@
-const CACHE = 'alenanails-v13';
+const CACHE = 'alenanails-v14';
 const ASSETS = [
   './',
   './index.html',
@@ -6,12 +6,31 @@ const ASSETS = [
   './app.js',
   './manifest.json',
   './logo-banner.png',
+  './icon-alena-152.png',
+  './icon-alena-167.png',
+  './icon-alena-180.png',
+  './icon-alena-192.png',
+  './icon-alena-512.png',
   './apple-touch-icon.png',
   './icon-192.png',
   './icon-512.png'
 ];
 
-const NETWORK_FIRST = ['app.js', 'style.css', 'index.html', 'logo-banner.png'];
+const NETWORK_FIRST = [
+  'app.js',
+  'style.css',
+  'index.html',
+  'manifest.json',
+  'logo-banner.png',
+  'icon-alena-152.png',
+  'icon-alena-167.png',
+  'icon-alena-180.png',
+  'icon-alena-192.png',
+  'icon-alena-512.png',
+  'apple-touch-icon.png',
+  'icon-192.png',
+  'icon-512.png'
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
