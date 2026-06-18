@@ -3,15 +3,15 @@ const SERVICE_TYPES = ['', 'м+л', 'м+г', 'м', 'г'];
 const STORAGE_KEY = 'ezhnedevnik.entries.v2';
 const HINT_KEY = 'ezhnedevnik.hint.dismissed';
 
-const WEEKDAYS_RU = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
-const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEKDAYS_RU = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+const WEEKDAYS_FULL_RU = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
 const MONTHS_RU = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
 
+const today = startOfDay(new Date());
 let entries = loadEntries();
-let weekStart = startOfWeek(new Date());
-let selectedDate = new Date(weekStart);
+let selectedDate = new Date(today);
+let weekStart = startOfWeek(selectedDate);
 let viewMode = 'day';
-let editingKey = null;
 
 const app = document.getElementById('app');
 const monthTitle = document.getElementById('monthTitle');
@@ -21,17 +21,9 @@ const hoursList = document.getElementById('hoursList');
 const weekGrid = document.getElementById('weekGrid');
 const dayView = document.getElementById('dayView');
 const weekView = document.getElementById('weekView');
-const contactDialog = document.getElementById('contactDialog');
-const contactDialogTitle = document.getElementById('contactDialogTitle');
-const manualName = document.getElementById('manualName');
-const manualPhone = document.getElementById('manualPhone');
 
 document.getElementById('prevBtn').addEventListener('click', () => navigateDay(-1));
 document.getElementById('nextBtn').addEventListener('click', () => navigateDay(1));
-document.getElementById('pickContactBtn').addEventListener('click', pickContact);
-document.getElementById('saveContactBtn').addEventListener('click', saveContactFromDialog);
-document.getElementById('clearContactBtn').addEventListener('click', clearContactFromDialog);
-document.getElementById('cancelContactBtn').addEventListener('click', () => contactDialog.close());
 document.getElementById('dismissHint').addEventListener('click', () => {
   localStorage.setItem(HINT_KEY, '1');
   document.getElementById('installHint').classList.add('hidden');
@@ -50,11 +42,8 @@ if (!localStorage.getItem(HINT_KEY) && !window.navigator.standalone) {
 render();
 
 function render() {
-  if (viewMode === 'day') {
-    renderDayView();
-  } else {
-    renderWeekView();
-  }
+  if (viewMode === 'day') renderDayView();
+  else renderWeekView();
 }
 
 function renderDayView() {
@@ -63,8 +52,8 @@ function renderDayView() {
   weekView.classList.add('hidden');
 
   const info = dayInfo(selectedDate);
-  monthTitle.textContent = `${capitalize(MONTHS_RU[selectedDate.getMonth()])} · неделя ${getWeekNumber(weekStart)}`;
-  dayTitle.textContent = `${info.weekdayRu} / ${info.weekdayEn}`;
+  monthTitle.textContent = `${capitalize(MONTHS_RU[selectedDate.getMonth()])} · нед. ${getWeekNumber(weekStart)}`;
+  dayTitle.textContent = `${info.day} · ${info.weekdayRu}`;
 
   dayHeader.innerHTML = `
     <div class="day-top">
@@ -78,9 +67,7 @@ function renderDayView() {
   `;
 
   hoursList.innerHTML = '';
-  HOURS.forEach((hour) => {
-    hoursList.appendChild(createHourRow(selectedDate, hour));
-  });
+  HOURS.forEach((hour) => hoursList.appendChild(createHourRow(selectedDate, hour)));
 }
 
 function createHourRow(date, hour) {
@@ -88,66 +75,65 @@ function createHourRow(date, hour) {
   const entry = getEntry(key);
   const row = document.createElement('div');
   row.className = 'hour-row';
-  row.dataset.key = key;
+  row.dataset.hourKey = key;
 
   const timeCol = document.createElement('div');
   timeCol.className = 'time-col';
-  timeCol.innerHTML = `<span class="hour-label">${hour}</span>`;
+  const hourLabel = document.createElement('span');
+  hourLabel.className = 'hour-label';
+  hourLabel.textContent = hour;
+  timeCol.appendChild(hourLabel);
 
   const minutesInput = document.createElement('input');
   minutesInput.type = 'text';
   minutesInput.inputMode = 'numeric';
-  minutesInput.pattern = '[0-9]*';
   minutesInput.maxLength = 2;
   minutesInput.className = 'minutes-input';
   minutesInput.placeholder = '00';
-  minutesInput.value = entry.minutes ?? '';
-  minutesInput.setAttribute('aria-label', `Минуты для ${hour} часа`);
-  minutesInput.addEventListener('click', (e) => e.stopPropagation());
-  minutesInput.addEventListener('input', () => {
-    minutesInput.value = minutesInput.value.replace(/\D/g, '').slice(0, 2);
-    if (minutesInput.value.length === 2) {
-      const val = Math.min(59, parseInt(minutesInput.value, 10) || 0);
-      minutesInput.value = String(val).padStart(2, '0');
-    }
-    saveMinutes(key, minutesInput.value);
-  });
-  minutesInput.addEventListener('blur', () => {
-    if (minutesInput.value !== '' && minutesInput.value.length === 1) {
-      minutesInput.value = minutesInput.value.padStart(2, '0');
-      saveMinutes(key, minutesInput.value);
-    }
-  });
+  minutesInput.value = entry.minutes || '';
+  minutesInput.setAttribute('aria-label', `Минуты, ${hour} час`);
+  bindMinutesInput(minutesInput, key);
   timeCol.appendChild(minutesInput);
 
-  const clientBtn = document.createElement('button');
-  clientBtn.type = 'button';
-  clientBtn.className = 'client-cell';
-  if (entry.contactName) {
-    clientBtn.innerHTML = `<span class="client-name">${escapeHtml(entry.contactName)}</span>`;
-    clientBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (entry.contactPhone) {
-        window.location.href = `tel:${normalizePhone(entry.contactPhone)}`;
-      } else {
-        openContactDialog(key, date, hour);
-      }
+  const clientCol = document.createElement('div');
+  clientCol.className = 'client-col';
+
+  if (entry.contactPhone) {
+    const callBtn = document.createElement('button');
+    callBtn.type = 'button';
+    callBtn.className = 'name-call-btn';
+    callBtn.textContent = entry.contactName || 'Звонок';
+    callBtn.title = 'Позвонить';
+    callBtn.addEventListener('click', () => {
+      window.location.href = `tel:${normalizePhone(entry.contactPhone)}`;
     });
-    clientBtn.addEventListener('contextmenu', (e) => e.preventDefault());
-    let pressTimer = null;
-    clientBtn.addEventListener('touchstart', () => {
-      pressTimer = setTimeout(() => openContactDialog(key, date, hour), 500);
-    }, { passive: true });
-    clientBtn.addEventListener('touchend', () => clearTimeout(pressTimer));
-    clientBtn.addEventListener('touchmove', () => clearTimeout(pressTimer));
+    clientCol.appendChild(callBtn);
   } else {
-    clientBtn.innerHTML = '<span class="client-placeholder">+ клиент</span>';
-    clientBtn.addEventListener('click', () => openContactDialog(key, date, hour));
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'name-input';
+    nameInput.placeholder = 'Имя';
+    nameInput.value = entry.contactName || '';
+    nameInput.setAttribute('aria-label', `Имя, ${hour} час`);
+    nameInput.addEventListener('input', () => {
+      updateEntry(key, { contactName: nameInput.value.trim() });
+    });
+    nameInput.addEventListener('blur', () => {
+      updateEntry(key, { contactName: nameInput.value.trim() });
+    });
+    clientCol.appendChild(nameInput);
   }
+
+  const pickBtn = document.createElement('button');
+  pickBtn.type = 'button';
+  pickBtn.className = 'pick-btn';
+  pickBtn.textContent = '👤';
+  pickBtn.title = 'Из контактов';
+  pickBtn.addEventListener('click', () => pickContactForRow(key));
+  clientCol.appendChild(pickBtn);
 
   const serviceSelect = document.createElement('select');
   serviceSelect.className = 'service-select';
-  serviceSelect.setAttribute('aria-label', 'Тип услуги');
   SERVICE_TYPES.forEach((type) => {
     const opt = document.createElement('option');
     opt.value = type;
@@ -155,13 +141,51 @@ function createHourRow(date, hour) {
     serviceSelect.appendChild(opt);
   });
   serviceSelect.value = entry.serviceType || '';
-  serviceSelect.addEventListener('click', (e) => e.stopPropagation());
-  serviceSelect.addEventListener('change', () => saveServiceType(key, serviceSelect.value));
+  serviceSelect.addEventListener('change', () => {
+    updateEntry(key, { serviceType: serviceSelect.value });
+  });
 
   row.appendChild(timeCol);
-  row.appendChild(clientBtn);
+  row.appendChild(clientCol);
   row.appendChild(serviceSelect);
   return row;
+}
+
+function bindMinutesInput(input, key) {
+  input.addEventListener('input', () => {
+    input.value = input.value.replace(/\D/g, '').slice(0, 2);
+    updateEntry(key, { minutes: input.value });
+  });
+  input.addEventListener('blur', () => {
+    if (input.value.length === 1) {
+      input.value = input.value.padStart(2, '0');
+      updateEntry(key, { minutes: input.value });
+    }
+    if (input.value.length === 2) {
+      const val = Math.min(59, parseInt(input.value, 10) || 0);
+      input.value = String(val).padStart(2, '0');
+      updateEntry(key, { minutes: input.value });
+    }
+  });
+}
+
+async function pickContactForRow(key) {
+  if ('contacts' in navigator && navigator.contacts?.select) {
+    try {
+      const result = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+      if (!result?.length) return;
+      const contact = result[0];
+      const fullName = contact.name?.[0] || '';
+      const firstName = fullName.split(/\s+/)[0] || fullName;
+      const phone = contact.tel?.[0] || '';
+      updateEntry(key, { contactName: firstName, contactPhone: phone });
+      render();
+      return;
+    } catch {
+      /* manual entry */
+    }
+  }
+  render();
 }
 
 function renderWeekView() {
@@ -175,81 +199,41 @@ function renderWeekView() {
 
   weekGrid.innerHTML = '';
   days.forEach((date) => {
+    const dayEntries = getDayEntries(date);
     const col = document.createElement('button');
     col.type = 'button';
     col.className = `week-day-col${isSameDay(date, selectedDate) ? ' active' : ''}${isToday(date) ? ' today' : ''}`;
-    const info = dayInfo(date);
-    const slots = HOURS
-      .map((hour) => {
-        const entry = getEntry(entryKey(date, hour));
-        if (!entry.contactName) return '';
-        const mins = entry.minutes ? `:${entry.minutes}` : '';
-        const svc = entry.serviceType ? ` ${entry.serviceType}` : '';
-        return `<div class="week-slot"><span class="week-slot-time">${hour}${mins}</span> ${escapeHtml(entry.contactName)}${svc}</div>`;
-      })
-      .filter(Boolean)
-      .join('');
+
+    const slotsHtml = dayEntries.length
+      ? dayEntries.map(({ hour, entry }) => {
+          const mins = entry.minutes ? `:${entry.minutes}` : '';
+          const svc = entry.serviceType ? ` ${entry.serviceType}` : '';
+          return `<div class="week-slot"><b>${hour}${mins}</b> ${escapeHtml(entry.contactName)}${svc}</div>`;
+        }).join('')
+      : '<span class="week-empty">пусто</span>';
+
+    const fillClass = dayEntries.length === 0 ? '' : dayEntries.length >= 5 ? ' fill-high' : ' fill-low';
 
     col.innerHTML = `
       <div class="week-day-head">
-        <strong>${info.day}</strong>
-        <span>${info.weekdayRu.slice(0, 2)}</span>
+        <strong>${date.getDate()}</strong>
+        <span>${WEEKDAYS_RU[date.getDay()]}</span>
+        <span class="week-fill${fillClass}">${dayEntries.length}</span>
       </div>
-      <div class="week-day-body">${slots || '<span class="week-empty">—</span>'}</div>
+      <div class="week-day-body">${slotsHtml}</div>
     `;
     col.addEventListener('click', () => {
-      selectedDate = new Date(date);
+      selectedDate = startOfDay(date);
       setViewMode('day');
     });
     weekGrid.appendChild(col);
   });
 }
 
-function openContactDialog(key, date, hour) {
-  editingKey = key;
-  const entry = getEntry(key);
-  contactDialogTitle.textContent = `${formatDateLabel(date)} · ${String(hour).padStart(2, '0')}:${(entry.minutes || '00').toString().padStart(2, '0')}`;
-  manualName.value = entry.contactName || '';
-  manualPhone.value = entry.contactPhone || '';
-  contactDialog.showModal();
-}
-
-function saveContactFromDialog() {
-  const name = manualName.value.trim();
-  const phone = manualPhone.value.trim();
-  updateEntry(editingKey, { contactName: name, contactPhone: phone });
-  contactDialog.close();
-  render();
-}
-
-function clearContactFromDialog() {
-  updateEntry(editingKey, { contactName: '', contactPhone: '' });
-  contactDialog.close();
-  render();
-}
-
-async function pickContact() {
-  if ('contacts' in navigator && navigator.contacts?.select) {
-    try {
-      const result = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-      if (result?.length) {
-        manualName.value = result[0].name?.[0] || '';
-        manualPhone.value = result[0].tel?.[0] || '';
-        return;
-      }
-    } catch {
-      /* fallback below */
-    }
-  }
-  manualName.focus();
-}
-
-function saveMinutes(key, minutes) {
-  updateEntry(key, { minutes });
-}
-
-function saveServiceType(key, serviceType) {
-  updateEntry(key, { serviceType });
+function getDayEntries(date) {
+  return HOURS
+    .map((hour) => ({ hour, entry: getEntry(entryKey(date, hour)) }))
+    .filter(({ entry }) => entry.contactName || entry.serviceType || entry.minutes);
 }
 
 function getEntry(key) {
@@ -261,11 +245,8 @@ function updateEntry(key, patch) {
   const next = { ...current, ...patch };
   const empty = !next.contactName && !next.contactPhone && !next.serviceType &&
     (next.minutes === '' || next.minutes == null);
-  if (empty) {
-    delete entries[key];
-  } else {
-    entries[key] = next;
-  }
+  if (empty) delete entries[key];
+  else entries[key] = next;
   persistEntries();
 }
 
@@ -293,28 +274,30 @@ function setupPinchZoom() {
     if (e.touches.length !== 2 || initialDistance == null) return;
     const distance = touchDistance(e.touches[0], e.touches[1]);
     const ratio = distance / initialDistance;
-    if (ratio < 0.75 && viewMode === 'day') {
+    if (ratio < 0.8 && viewMode === 'day') {
       setViewMode('week');
       initialDistance = null;
-    } else if (ratio > 1.35 && viewMode === 'week') {
+    } else if (ratio > 1.25 && viewMode === 'week') {
       setViewMode('day');
       initialDistance = null;
     }
   }, { passive: true });
 
-  app.addEventListener('touchend', () => {
-    initialDistance = null;
-  });
+  app.addEventListener('touchend', () => { initialDistance = null; });
 }
 
 function touchDistance(a, b) {
-  const dx = a.clientX - b.clientX;
-  const dy = a.clientY - b.clientY;
-  return Math.hypot(dx, dy);
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 }
 
 function normalizePhone(phone) {
   return phone.replace(/[^\d+]/g, '');
+}
+
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 function getWeekDays(start) {
@@ -322,11 +305,10 @@ function getWeekDays(start) {
 }
 
 function startOfWeek(date) {
-  const d = new Date(date);
+  const d = startOfDay(date);
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
   return d;
 }
 
@@ -361,8 +343,7 @@ function dayInfo(date) {
   const sun = sunTimes(date);
   return {
     day: date.getDate(),
-    weekdayRu: WEEKDAYS_RU[date.getDay()],
-    weekdayEn: WEEKDAYS_EN[date.getDay()],
+    weekdayRu: WEEKDAYS_FULL_RU[date.getDay()],
     dayOfYear,
     daysLeft: Math.max(yearLength - dayOfYear, 0),
     sunrise: sun.sunrise,
@@ -395,10 +376,6 @@ function formatMonthRange(days) {
   return days[0].getMonth() === days[6].getMonth() ? ruFirst : `${ruFirst} — ${ruLast}`;
 }
 
-function formatDateLabel(date) {
-  return `${date.getDate()} ${capitalize(MONTHS_RU[date.getMonth()])}`;
-}
-
 function entryKey(date, hour) {
   return `${dateKey(date)}-${hour}`;
 }
@@ -409,21 +386,7 @@ function dateKey(date) {
 
 function loadEntries() {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    const old = localStorage.getItem('ezhnedevnik.entries.v1');
-    if (Object.keys(raw).length === 0 && old) {
-      const migrated = {};
-      Object.entries(JSON.parse(old)).forEach(([key, val]) => {
-        migrated[key] = {
-          minutes: '',
-          contactName: val.contactName || '',
-          contactPhone: val.contactPhone || '',
-          serviceType: ''
-        };
-      });
-      return migrated;
-    }
-    return raw;
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
   } catch {
     return {};
   }

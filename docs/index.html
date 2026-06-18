@@ -15,12 +15,12 @@
 <body>
   <div id="app" data-mode="day">
     <header class="top-bar">
-      <button id="prevBtn" class="icon-btn" aria-label="Назад">‹</button>
+      <button id="prevBtn" class="icon-btn" aria-label="Предыдущий день">‹</button>
       <div class="top-center">
         <div id="monthTitle" class="month-title"></div>
         <div id="dayTitle" class="day-title"></div>
       </div>
-      <button id="nextBtn" class="icon-btn" aria-label="Вперёд">›</button>
+      <button id="nextBtn" class="icon-btn" aria-label="Следующий день">›</button>
     </header>
 
     <div id="dayView" class="day-view">
@@ -29,30 +29,10 @@
     </div>
 
     <div id="weekView" class="week-view hidden">
-      <div class="week-hint">Сведите пальцы — один день · Разведите — вся неделя</div>
+      <div class="week-hint">Сведите 2 пальца — вся неделя · Нажмите на день — открыть</div>
       <div id="weekGrid" class="week-overview"></div>
     </div>
   </div>
-
-  <dialog id="contactDialog" class="sheet-dialog">
-    <div class="sheet-content">
-      <h2 id="contactDialogTitle">Клиент</h2>
-      <button type="button" id="pickContactBtn" class="primary-btn full-width">Выбрать из контактов</button>
-      <label class="field">
-        <span>Имя</span>
-        <input id="manualName" type="text" placeholder="Имя клиента" autocomplete="name">
-      </label>
-      <label class="field">
-        <span>Телефон</span>
-        <input id="manualPhone" type="tel" placeholder="+7 ..." autocomplete="tel">
-      </label>
-      <div class="dialog-actions">
-        <button type="button" id="clearContactBtn" class="danger-btn">Очистить</button>
-        <button type="button" id="cancelContactBtn" class="secondary-btn">Отмена</button>
-        <button type="button" id="saveContactBtn" class="primary-btn">Сохранить</button>
-      </div>
-    </div>
-  </dialog>
 
   <div id="installHint" class="install-hint hidden">
     <p>Safari → <strong>Поделиться</strong> → <strong>На экран «Домой»</strong></p>
