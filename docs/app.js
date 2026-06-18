@@ -1,47 +1,43 @@
-const HOURS = Array.from({ length: 12 }, (_, i) => i + 8);
-const STORAGE_KEY = 'ezhnedevnik.entries.v1';
+const HOURS = Array.from({ length: 13 }, (_, i) => i + 8);
+const SERVICE_TYPES = ['', 'м+л', 'м+г', 'м', 'г'];
+const STORAGE_KEY = 'ezhnedevnik.entries.v2';
 const HINT_KEY = 'ezhnedevnik.hint.dismissed';
 
 const WEEKDAYS_RU = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
 const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS_RU = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
-const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 let entries = loadEntries();
 let weekStart = startOfWeek(new Date());
+let selectedDate = new Date(weekStart);
+let viewMode = 'day';
 let editingKey = null;
 
-const weekGrid = document.getElementById('weekGrid');
+const app = document.getElementById('app');
 const monthTitle = document.getElementById('monthTitle');
-const weekTitle = document.getElementById('weekTitle');
-const miniCalendar = document.getElementById('miniCalendar');
-const entryDialog = document.getElementById('entryDialog');
-const entryForm = document.getElementById('entryForm');
-const dialogTitle = document.getElementById('dialogTitle');
-const entryText = document.getElementById('entryText');
-const contactName = document.getElementById('contactName');
-const contactPhone = document.getElementById('contactPhone');
+const dayTitle = document.getElementById('dayTitle');
+const dayHeader = document.getElementById('dayHeader');
+const hoursList = document.getElementById('hoursList');
+const weekGrid = document.getElementById('weekGrid');
+const dayView = document.getElementById('dayView');
+const weekView = document.getElementById('weekView');
+const contactDialog = document.getElementById('contactDialog');
+const contactDialogTitle = document.getElementById('contactDialogTitle');
+const manualName = document.getElementById('manualName');
+const manualPhone = document.getElementById('manualPhone');
 
-document.getElementById('prevWeek').addEventListener('click', () => shiftWeek(-1));
-document.getElementById('nextWeek').addEventListener('click', () => shiftWeek(1));
-document.getElementById('todayBtn').addEventListener('click', () => {
-  weekStart = startOfWeek(new Date());
-  render();
-});
-
+document.getElementById('prevBtn').addEventListener('click', () => navigateDay(-1));
+document.getElementById('nextBtn').addEventListener('click', () => navigateDay(1));
 document.getElementById('pickContactBtn').addEventListener('click', pickContact);
-document.getElementById('cancelBtn').addEventListener('click', () => entryDialog.close());
-document.getElementById('deleteEntryBtn').addEventListener('click', deleteCurrentEntry);
-entryForm.addEventListener('submit', (event) => {
-  event.preventDefault();
-  saveCurrentEntry();
-  entryDialog.close();
-});
-
+document.getElementById('saveContactBtn').addEventListener('click', saveContactFromDialog);
+document.getElementById('clearContactBtn').addEventListener('click', clearContactFromDialog);
+document.getElementById('cancelContactBtn').addEventListener('click', () => contactDialog.close());
 document.getElementById('dismissHint').addEventListener('click', () => {
   localStorage.setItem(HINT_KEY, '1');
   document.getElementById('installHint').classList.add('hidden');
 });
+
+setupPinchZoom();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
@@ -54,139 +50,271 @@ if (!localStorage.getItem(HINT_KEY) && !window.navigator.standalone) {
 render();
 
 function render() {
-  const days = getWeekDays(weekStart);
-  monthTitle.textContent = formatMonthRange(days);
-  weekTitle.textContent = `Неделя ${getWeekNumber(weekStart)} week`;
-  weekGrid.innerHTML = '';
-
-  days.forEach((date) => {
-    const isSunday = date.getDay() === 0;
-    weekGrid.appendChild(createDayCard(date, isSunday));
-  });
-
-  renderMiniCalendar(days[0]);
+  if (viewMode === 'day') {
+    renderDayView();
+  } else {
+    renderWeekView();
+  }
 }
 
-function createDayCard(date, compact) {
-  const card = document.createElement('section');
-  card.className = `day-card${isToday(date) ? ' today' : ''}${compact ? ' compact' : ''}`;
+function renderDayView() {
+  app.dataset.mode = 'day';
+  dayView.classList.remove('hidden');
+  weekView.classList.add('hidden');
 
-  const info = dayInfo(date);
-  card.innerHTML = `
-    <div class="day-header">
-      <div class="day-top">
-        <div class="day-number">${info.day}</div>
-        <div class="day-counter">${info.dayOfYear}/${info.daysLeft}</div>
-      </div>
-      <div class="day-name">${info.weekdayRu} / ${info.weekdayEn}</div>
-      <div class="sun-times">
-        <span>☀️ ${info.sunrise}</span>
-        <span>🌙 ${info.sunset}</span>
-      </div>
+  const info = dayInfo(selectedDate);
+  monthTitle.textContent = `${capitalize(MONTHS_RU[selectedDate.getMonth()])} · неделя ${getWeekNumber(weekStart)}`;
+  dayTitle.textContent = `${info.weekdayRu} / ${info.weekdayEn}`;
+
+  dayHeader.innerHTML = `
+    <div class="day-top">
+      <div class="day-number">${info.day}</div>
+      <div class="day-counter">${info.dayOfYear}/${info.daysLeft}</div>
     </div>
-    <div class="hours"></div>
+    <div class="sun-times">
+      <span>☀️ ${info.sunrise}</span>
+      <span>🌙 ${info.sunset}</span>
+    </div>
   `;
 
-  const hoursEl = card.querySelector('.hours');
+  hoursList.innerHTML = '';
   HOURS.forEach((hour) => {
-    const key = entryKey(date, hour);
-    const entry = entries[key] || {};
-    const row = document.createElement('button');
-    row.type = 'button';
-    row.className = 'hour-row';
-    row.innerHTML = `
-      <span class="hour-label">${hour}</span>
-      <span class="hour-content">
-        ${entry.contactName ? `<span class="hour-contact">${escapeHtml(entry.contactName)}</span>` : ''}
-        ${entry.text ? `<span class="hour-note">${escapeHtml(entry.text)}</span>` : ''}
-      </span>
-    `;
-    row.addEventListener('click', () => openEditor(key, date, hour));
-    hoursEl.appendChild(row);
+    hoursList.appendChild(createHourRow(selectedDate, hour));
   });
-
-  return card;
 }
 
-function openEditor(key, date, hour) {
-  editingKey = key;
-  const entry = entries[key] || {};
-  dialogTitle.textContent = `${formatDateLabel(date)} · ${String(hour).padStart(2, '0')}:00`;
-  entryText.value = entry.text || '';
-  contactName.value = entry.contactName || '';
-  contactPhone.value = entry.contactPhone || '';
-  entryDialog.showModal();
-}
+function createHourRow(date, hour) {
+  const key = entryKey(date, hour);
+  const entry = getEntry(key);
+  const row = document.createElement('div');
+  row.className = 'hour-row';
+  row.dataset.key = key;
 
-function saveCurrentEntry() {
-  const text = entryText.value.trim();
-  const name = contactName.value.trim();
-  const phone = contactPhone.value.trim();
+  const timeCol = document.createElement('div');
+  timeCol.className = 'time-col';
+  timeCol.innerHTML = `<span class="hour-label">${hour}</span>`;
 
-  if (!text && !name && !phone) {
-    delete entries[editingKey];
+  const minutesInput = document.createElement('input');
+  minutesInput.type = 'text';
+  minutesInput.inputMode = 'numeric';
+  minutesInput.pattern = '[0-9]*';
+  minutesInput.maxLength = 2;
+  minutesInput.className = 'minutes-input';
+  minutesInput.placeholder = '00';
+  minutesInput.value = entry.minutes ?? '';
+  minutesInput.setAttribute('aria-label', `Минуты для ${hour} часа`);
+  minutesInput.addEventListener('click', (e) => e.stopPropagation());
+  minutesInput.addEventListener('input', () => {
+    minutesInput.value = minutesInput.value.replace(/\D/g, '').slice(0, 2);
+    if (minutesInput.value.length === 2) {
+      const val = Math.min(59, parseInt(minutesInput.value, 10) || 0);
+      minutesInput.value = String(val).padStart(2, '0');
+    }
+    saveMinutes(key, minutesInput.value);
+  });
+  minutesInput.addEventListener('blur', () => {
+    if (minutesInput.value !== '' && minutesInput.value.length === 1) {
+      minutesInput.value = minutesInput.value.padStart(2, '0');
+      saveMinutes(key, minutesInput.value);
+    }
+  });
+  timeCol.appendChild(minutesInput);
+
+  const clientBtn = document.createElement('button');
+  clientBtn.type = 'button';
+  clientBtn.className = 'client-cell';
+  if (entry.contactName) {
+    clientBtn.innerHTML = `<span class="client-name">${escapeHtml(entry.contactName)}</span>`;
+    clientBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (entry.contactPhone) {
+        window.location.href = `tel:${normalizePhone(entry.contactPhone)}`;
+      } else {
+        openContactDialog(key, date, hour);
+      }
+    });
+    clientBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+    let pressTimer = null;
+    clientBtn.addEventListener('touchstart', () => {
+      pressTimer = setTimeout(() => openContactDialog(key, date, hour), 500);
+    }, { passive: true });
+    clientBtn.addEventListener('touchend', () => clearTimeout(pressTimer));
+    clientBtn.addEventListener('touchmove', () => clearTimeout(pressTimer));
   } else {
-    entries[editingKey] = { text, contactName: name, contactPhone: phone };
+    clientBtn.innerHTML = '<span class="client-placeholder">+ клиент</span>';
+    clientBtn.addEventListener('click', () => openContactDialog(key, date, hour));
   }
 
-  persistEntries();
+  const serviceSelect = document.createElement('select');
+  serviceSelect.className = 'service-select';
+  serviceSelect.setAttribute('aria-label', 'Тип услуги');
+  SERVICE_TYPES.forEach((type) => {
+    const opt = document.createElement('option');
+    opt.value = type;
+    opt.textContent = type || '—';
+    serviceSelect.appendChild(opt);
+  });
+  serviceSelect.value = entry.serviceType || '';
+  serviceSelect.addEventListener('click', (e) => e.stopPropagation());
+  serviceSelect.addEventListener('change', () => saveServiceType(key, serviceSelect.value));
+
+  row.appendChild(timeCol);
+  row.appendChild(clientBtn);
+  row.appendChild(serviceSelect);
+  return row;
+}
+
+function renderWeekView() {
+  app.dataset.mode = 'week';
+  dayView.classList.add('hidden');
+  weekView.classList.remove('hidden');
+
+  const days = getWeekDays(weekStart);
+  monthTitle.textContent = formatMonthRange(days);
+  dayTitle.textContent = `Неделя ${getWeekNumber(weekStart)}`;
+
+  weekGrid.innerHTML = '';
+  days.forEach((date) => {
+    const col = document.createElement('button');
+    col.type = 'button';
+    col.className = `week-day-col${isSameDay(date, selectedDate) ? ' active' : ''}${isToday(date) ? ' today' : ''}`;
+    const info = dayInfo(date);
+    const slots = HOURS
+      .map((hour) => {
+        const entry = getEntry(entryKey(date, hour));
+        if (!entry.contactName) return '';
+        const mins = entry.minutes ? `:${entry.minutes}` : '';
+        const svc = entry.serviceType ? ` ${entry.serviceType}` : '';
+        return `<div class="week-slot"><span class="week-slot-time">${hour}${mins}</span> ${escapeHtml(entry.contactName)}${svc}</div>`;
+      })
+      .filter(Boolean)
+      .join('');
+
+    col.innerHTML = `
+      <div class="week-day-head">
+        <strong>${info.day}</strong>
+        <span>${info.weekdayRu.slice(0, 2)}</span>
+      </div>
+      <div class="week-day-body">${slots || '<span class="week-empty">—</span>'}</div>
+    `;
+    col.addEventListener('click', () => {
+      selectedDate = new Date(date);
+      setViewMode('day');
+    });
+    weekGrid.appendChild(col);
+  });
+}
+
+function openContactDialog(key, date, hour) {
+  editingKey = key;
+  const entry = getEntry(key);
+  contactDialogTitle.textContent = `${formatDateLabel(date)} · ${String(hour).padStart(2, '0')}:${(entry.minutes || '00').toString().padStart(2, '0')}`;
+  manualName.value = entry.contactName || '';
+  manualPhone.value = entry.contactPhone || '';
+  contactDialog.showModal();
+}
+
+function saveContactFromDialog() {
+  const name = manualName.value.trim();
+  const phone = manualPhone.value.trim();
+  updateEntry(editingKey, { contactName: name, contactPhone: phone });
+  contactDialog.close();
   render();
 }
 
-function deleteCurrentEntry() {
-  delete entries[editingKey];
-  persistEntries();
-  entryDialog.close();
+function clearContactFromDialog() {
+  updateEntry(editingKey, { contactName: '', contactPhone: '' });
+  contactDialog.close();
   render();
 }
 
 async function pickContact() {
-  if (!('contacts' in navigator) || !navigator.contacts?.select) {
-    alert('На iPhone введите имя и телефон вручную, или скопируйте из приложения «Контакты».');
-    contactName.focus();
-    return;
+  if ('contacts' in navigator && navigator.contacts?.select) {
+    try {
+      const result = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+      if (result?.length) {
+        manualName.value = result[0].name?.[0] || '';
+        manualPhone.value = result[0].tel?.[0] || '';
+        return;
+      }
+    } catch {
+      /* fallback below */
+    }
   }
-
-  try {
-    const result = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-    if (!result?.length) return;
-    const contact = result[0];
-    contactName.value = contact.name?.[0] || '';
-    contactPhone.value = contact.tel?.[0] || '';
-  } catch {
-    contactName.focus();
-  }
+  manualName.focus();
 }
 
-function renderMiniCalendar(referenceDate) {
-  const year = referenceDate.getFullYear();
-  const month = referenceDate.getMonth();
-  const first = new Date(year, month, 1);
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const leading = (first.getDay() + 6) % 7;
-
-  let daysHtml = '';
-  for (let i = 0; i < leading; i += 1) {
-    daysHtml += '<span></span>';
-  }
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    const date = new Date(year, month, day);
-    const todayClass = isToday(date) ? ' today-dot' : '';
-    daysHtml += `<span class="${todayClass}">${day}</span>`;
-  }
-
-  miniCalendar.innerHTML = `
-    <div class="mini-title">${capitalize(MONTHS_RU[month])} / ${MONTHS_EN[month]}</div>
-    <div class="mini-weekdays">
-      <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
-    </div>
-    <div class="mini-days">${daysHtml}</div>
-  `;
+function saveMinutes(key, minutes) {
+  updateEntry(key, { minutes });
 }
 
-function shiftWeek(delta) {
-  weekStart = addDays(weekStart, delta * 7);
+function saveServiceType(key, serviceType) {
+  updateEntry(key, { serviceType });
+}
+
+function getEntry(key) {
+  return entries[key] || { minutes: '', contactName: '', contactPhone: '', serviceType: '' };
+}
+
+function updateEntry(key, patch) {
+  const current = getEntry(key);
+  const next = { ...current, ...patch };
+  const empty = !next.contactName && !next.contactPhone && !next.serviceType &&
+    (next.minutes === '' || next.minutes == null);
+  if (empty) {
+    delete entries[key];
+  } else {
+    entries[key] = next;
+  }
+  persistEntries();
+}
+
+function navigateDay(delta) {
+  selectedDate = addDays(selectedDate, delta);
+  weekStart = startOfWeek(selectedDate);
   render();
+}
+
+function setViewMode(mode) {
+  viewMode = mode;
+  render();
+}
+
+function setupPinchZoom() {
+  let initialDistance = null;
+
+  app.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      initialDistance = touchDistance(e.touches[0], e.touches[1]);
+    }
+  }, { passive: true });
+
+  app.addEventListener('touchmove', (e) => {
+    if (e.touches.length !== 2 || initialDistance == null) return;
+    const distance = touchDistance(e.touches[0], e.touches[1]);
+    const ratio = distance / initialDistance;
+    if (ratio < 0.75 && viewMode === 'day') {
+      setViewMode('week');
+      initialDistance = null;
+    } else if (ratio > 1.35 && viewMode === 'week') {
+      setViewMode('day');
+      initialDistance = null;
+    }
+  }, { passive: true });
+
+  app.addEventListener('touchend', () => {
+    initialDistance = null;
+  });
+}
+
+function touchDistance(a, b) {
+  const dx = a.clientX - b.clientX;
+  const dy = a.clientY - b.clientY;
+  return Math.hypot(dx, dy);
+}
+
+function normalizePhone(phone) {
+  return phone.replace(/[^\d+]/g, '');
 }
 
 function getWeekDays(start) {
@@ -209,10 +337,13 @@ function addDays(date, days) {
 }
 
 function isToday(date) {
-  const now = new Date();
-  return date.getDate() === now.getDate() &&
-    date.getMonth() === now.getMonth() &&
-    date.getFullYear() === now.getFullYear();
+  return isSameDay(date, new Date());
+}
+
+function isSameDay(a, b) {
+  return a.getDate() === b.getDate() &&
+    a.getMonth() === b.getMonth() &&
+    a.getFullYear() === b.getFullYear();
 }
 
 function getWeekNumber(date) {
@@ -225,18 +356,15 @@ function getWeekNumber(date) {
 
 function dayInfo(date) {
   const start = new Date(date.getFullYear(), 0, 0);
-  const diff = date - start;
-  const dayOfYear = Math.floor(diff / 86400000);
+  const dayOfYear = Math.floor((date - start) / 86400000);
   const yearLength = isLeapYear(date.getFullYear()) ? 366 : 365;
-  const daysLeft = Math.max(yearLength - dayOfYear, 0);
   const sun = sunTimes(date);
-
   return {
     day: date.getDate(),
     weekdayRu: WEEKDAYS_RU[date.getDay()],
     weekdayEn: WEEKDAYS_EN[date.getDay()],
     dayOfYear,
-    daysLeft,
+    daysLeft: Math.max(yearLength - dayOfYear, 0),
     sunrise: sun.sunrise,
     sunset: sun.sunset
   };
@@ -249,31 +377,22 @@ function sunTimes(date, lat = 55.7558, lon = 37.6173) {
   const decl = 23.45 * Math.sin((360 / 365 * (dayOfYear - 81)) * Math.PI / 180) * Math.PI / 180;
   const hourAngle = Math.acos(-Math.tan(latRad) * Math.tan(decl));
   const solarNoon = 12 - lon / 15;
-  const sunriseHour = solarNoon - hourAngle * 12 / Math.PI;
-  const sunsetHour = solarNoon + hourAngle * 12 / Math.PI;
   return {
-    sunrise: formatHour(sunriseHour),
-    sunset: formatHour(sunsetHour)
+    sunrise: formatHour(solarNoon - hourAngle * 12 / Math.PI),
+    sunset: formatHour(solarNoon + hourAngle * 12 / Math.PI)
   };
 }
 
 function formatHour(value) {
-  const hours = Math.floor(value);
-  const minutes = Math.round((value - hours) * 60);
-  return `${hours}:${String(minutes).padStart(2, '0')}`;
+  const h = Math.floor(value);
+  const m = Math.round((value - h) * 60);
+  return `${h}:${String(m).padStart(2, '0')}`;
 }
 
 function formatMonthRange(days) {
-  const first = days[0];
-  const last = days[6];
-  const ruFirst = capitalize(MONTHS_RU[first.getMonth()]);
-  const ruLast = capitalize(MONTHS_RU[last.getMonth()]);
-  const enFirst = MONTHS_EN[first.getMonth()];
-  const enLast = MONTHS_EN[last.getMonth()];
-  if (first.getMonth() === last.getMonth()) {
-    return `${ruFirst} / ${enFirst}`;
-  }
-  return `${ruFirst} — ${ruLast} / ${enFirst} — ${enLast}`;
+  const ruFirst = capitalize(MONTHS_RU[days[0].getMonth()]);
+  const ruLast = capitalize(MONTHS_RU[days[6].getMonth()]);
+  return days[0].getMonth() === days[6].getMonth() ? ruFirst : `${ruFirst} — ${ruLast}`;
 }
 
 function formatDateLabel(date) {
@@ -285,15 +404,26 @@ function entryKey(date, hour) {
 }
 
 function dateKey(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function loadEntries() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const old = localStorage.getItem('ezhnedevnik.entries.v1');
+    if (Object.keys(raw).length === 0 && old) {
+      const migrated = {};
+      Object.entries(JSON.parse(old)).forEach(([key, val]) => {
+        migrated[key] = {
+          minutes: '',
+          contactName: val.contactName || '',
+          contactPhone: val.contactPhone || '',
+          serviceType: ''
+        };
+      });
+      return migrated;
+    }
+    return raw;
   } catch {
     return {};
   }
@@ -312,7 +442,7 @@ function capitalize(text) {
 }
 
 function escapeHtml(text) {
-  return text
+  return String(text)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')

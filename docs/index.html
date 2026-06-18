@@ -13,55 +13,49 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="app">
+  <div id="app" data-mode="day">
     <header class="top-bar">
-      <button id="prevWeek" class="icon-btn" aria-label="Прошлая неделя">‹</button>
+      <button id="prevBtn" class="icon-btn" aria-label="Назад">‹</button>
       <div class="top-center">
         <div id="monthTitle" class="month-title"></div>
-        <div id="weekTitle" class="week-title"></div>
+        <div id="dayTitle" class="day-title"></div>
       </div>
-      <button id="nextWeek" class="icon-btn" aria-label="Следующая неделя">›</button>
-      <button id="todayBtn" class="pill-btn">Сегодня</button>
+      <button id="nextBtn" class="icon-btn" aria-label="Вперёд">›</button>
     </header>
 
-    <main id="weekGrid" class="week-grid"></main>
+    <div id="dayView" class="day-view">
+      <div id="dayHeader" class="day-header-card"></div>
+      <div id="hoursList" class="hours-list"></div>
+    </div>
 
-    <section class="mini-calendar-wrap">
-      <div id="miniCalendar" class="mini-calendar"></div>
-    </section>
+    <div id="weekView" class="week-view hidden">
+      <div class="week-hint">Сведите пальцы — один день · Разведите — вся неделя</div>
+      <div id="weekGrid" class="week-overview"></div>
+    </div>
   </div>
 
-  <dialog id="entryDialog" class="entry-dialog">
-    <form method="dialog" id="entryForm">
-      <h2 id="dialogTitle">Запись</h2>
-
+  <dialog id="contactDialog" class="sheet-dialog">
+    <div class="sheet-content">
+      <h2 id="contactDialogTitle">Клиент</h2>
+      <button type="button" id="pickContactBtn" class="primary-btn full-width">Выбрать из контактов</button>
       <label class="field">
-        <span>Заметка</span>
-        <textarea id="entryText" rows="3" placeholder="Что запланировано?"></textarea>
+        <span>Имя</span>
+        <input id="manualName" type="text" placeholder="Имя клиента" autocomplete="name">
       </label>
-
-      <div class="contact-block">
-        <label class="field">
-          <span>Контакт</span>
-          <input id="contactName" type="text" placeholder="Имя" autocomplete="name">
-        </label>
-        <label class="field">
-          <span>Телефон</span>
-          <input id="contactPhone" type="tel" placeholder="+7 ..." autocomplete="tel">
-        </label>
-        <button type="button" id="pickContactBtn" class="secondary-btn">Выбрать из контактов</button>
-      </div>
-
+      <label class="field">
+        <span>Телефон</span>
+        <input id="manualPhone" type="tel" placeholder="+7 ..." autocomplete="tel">
+      </label>
       <div class="dialog-actions">
-        <button type="button" id="deleteEntryBtn" class="danger-btn">Удалить</button>
-        <button type="button" id="cancelBtn" class="secondary-btn">Отмена</button>
-        <button type="submit" class="primary-btn">Сохранить</button>
+        <button type="button" id="clearContactBtn" class="danger-btn">Очистить</button>
+        <button type="button" id="cancelContactBtn" class="secondary-btn">Отмена</button>
+        <button type="button" id="saveContactBtn" class="primary-btn">Сохранить</button>
       </div>
-    </form>
+    </div>
   </dialog>
 
   <div id="installHint" class="install-hint hidden">
-    <p>Чтобы сделать приложение на экране iPhone: нажмите <strong>Поделиться</strong> → <strong>На экран «Домой»</strong></p>
+    <p>Safari → <strong>Поделиться</strong> → <strong>На экран «Домой»</strong></p>
     <button id="dismissHint" class="secondary-btn">Понятно</button>
   </div>
 
