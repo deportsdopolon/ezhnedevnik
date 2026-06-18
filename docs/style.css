@@ -38,12 +38,12 @@ body {
   width: calc(100% + 20px);
   margin: 0 -10px 10px;
   padding: 0;
-  background: #d8e4d4;
-  border-bottom: 1px solid rgba(120, 140, 110, 0.2);
+  background: #1a5c38;
+  border-bottom: 1px solid rgba(20, 80, 50, 0.35);
 }
 
 .banner-bg {
-  background: #d8e4d4;
+  background: #1a5c38;
   padding: 0;
   display: flex;
   align-items: center;
@@ -54,7 +54,7 @@ body {
 .banner-img {
   width: 100%;
   height: auto;
-  max-height: 100px;
+  max-height: 110px;
   object-fit: cover;
   object-position: center;
   display: block;
@@ -143,12 +143,18 @@ body {
 
 .hour-row {
   display: grid;
-  grid-template-columns: 48px 1fr 42px 68px;
+  grid-template-columns: 48px 1fr 42px 72px;
   gap: 4px;
   align-items: center;
   min-height: 52px;
   border-bottom: 1px solid var(--line);
   padding: 6px 0;
+}
+
+.hour-row:has(.service-col.is-dual) {
+  min-height: 78px;
+  align-items: start;
+  padding-top: 8px;
 }
 
 .hour-row:last-child { border-bottom: none; }
@@ -246,8 +252,26 @@ body {
   -webkit-appearance: none;
 }
 
+.service-col {
+  width: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.service-col.is-dual .service-select:first-child {
+  height: 20px;
+  font-size: 9px;
+}
+
+.service-dual {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .service-select {
-  width: 68px;
+  width: 72px;
   height: 36px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -259,6 +283,11 @@ body {
   -webkit-appearance: none;
   text-align: center;
   letter-spacing: -0.3px;
+}
+
+.dual-select {
+  height: 28px;
+  font-size: 9px;
 }
 
 .month-picker {

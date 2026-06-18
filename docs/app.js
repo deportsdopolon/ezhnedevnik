@@ -1,16 +1,18 @@
 const HOURS = Array.from({ length: 13 }, (_, i) => i + 8);
 const SERVICES = [
   { id: '', label: '—', price: 0 },
+  { id: 'dual', label: '2', price: 0 },
   { id: 'm_ukr_1500', label: 'м+укр', price: 1500 },
   { id: 'mbp_600', label: 'мбп', price: 600 },
   { id: 'm_ukr_d_1700', label: 'м+укр+д', price: 1700 },
   { id: 'yap_man_1000', label: 'Яп.ман', price: 1000 },
   { id: 'ppbp_700', label: 'пПбп', price: 700 },
   { id: 'psbp_1400', label: 'пСбп', price: 1400 },
-  { id: 'ppgl_1400', label: 'пП+г.л', price: 1400 },
+  { id: 'ppgl_1400', label: 'Пп+гл', price: 1400 },
   { id: 'psgl_1700', label: 'пС+г.л', price: 1700 }
 ];
-const STORAGE_KEY = 'ezhnedevnik.entries.v4';
+const PICKABLE_SERVICES = SERVICES.filter((s) => s.id && s.id !== 'dual');
+const STORAGE_KEY = 'ezhnedevnik.entries.v5';
 const HINT_KEY = 'ezhnedevnik.hint.dismissed';
 
 const WEEKDAYS_RU = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
@@ -70,7 +72,7 @@ function render() {
 }
 
 function bannerHTML() {
-  return `<div class="banner-bg"><img src="logo-banner.png?v=6" alt="АлёнаNails" class="banner-img"></div>`;
+  return `<div class="banner-bg"><img src="logo-banner.png?v=7" alt="АлёнаNails" class="banner-img"></div>`;
 }
 
 function renderDayView() {
@@ -126,6 +128,9 @@ function createHourRow(date, hour) {
     updateEntry(key, { price: val ? parseInt(val, 10) : '' });
   });
 
+  const serviceCol = document.createElement('div');
+  serviceCol.className = 'service-col';
+
   const serviceSelect = document.createElement('select');
   serviceSelect.className = 'service-select';
   SERVICES.forEach((svc) => {
@@ -135,23 +140,97 @@ function createHourRow(date, hour) {
     serviceSelect.appendChild(opt);
   });
   serviceSelect.value = entry.serviceId || '';
+
+  const dualWrap = document.createElement('div');
+  dualWrap.className = 'service-dual';
+
+  const dualSelect1 = document.createElement('select');
+  dualSelect1.className = 'service-select dual-select';
+  const dualSelect2 = document.createElement('select');
+  dualSelect2.className = 'service-select dual-select';
+
+  [dualSelect1, dualSelect2].forEach((sel, idx) => {
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = idx === 0 ? '1' : '2';
+    sel.appendChild(empty);
+    PICKABLE_SERVICES.forEach((svc) => {
+      const opt = document.createElement('option');
+      opt.value = svc.id;
+      opt.textContent = svc.label;
+      sel.appendChild(opt);
+    });
+  });
+  dualSelect1.value = entry.serviceId1 || '';
+  dualSelect2.value = entry.serviceId2 || '';
+
+  function applyDualPrice() {
+    const total = servicePrice(dualSelect1.value) + servicePrice(dualSelect2.value);
+    if (total > 0) {
+      priceInput.value = String(total);
+      updateEntry(key, { price: total });
+    } else {
+      priceInput.value = '';
+      updateEntry(key, { price: '' });
+    }
+  }
+
+  function syncDualUI() {
+    const isDual = serviceSelect.value === 'dual';
+    serviceCol.classList.toggle('is-dual', isDual);
+    dualWrap.classList.toggle('hidden', !isDual);
+  }
+
   serviceSelect.addEventListener('change', () => {
-    const svc = SERVICES.find((s) => s.id === serviceSelect.value);
-    const patch = { serviceId: serviceSelect.value };
-    if (svc?.price && !priceInput.value) {
-      patch.price = svc.price;
-      priceInput.value = String(svc.price);
-    } else if (!serviceSelect.value) {
+    const val = serviceSelect.value;
+    if (val === 'dual') {
+      updateEntry(key, {
+        serviceId: 'dual',
+        serviceId1: dualSelect1.value,
+        serviceId2: dualSelect2.value
+      });
+      applyDualPrice();
+      syncDualUI();
+      return;
+    }
+    const svc = SERVICES.find((s) => s.id === val);
+    const patch = {
+      serviceId: val,
+      serviceId1: '',
+      serviceId2: ''
+    };
+    if (!val) {
       patch.price = '';
       priceInput.value = '';
+    } else if (svc?.price) {
+      patch.price = svc.price;
+      priceInput.value = String(svc.price);
     }
     updateEntry(key, patch);
+    syncDualUI();
   });
+
+  function onDualChange() {
+    updateEntry(key, {
+      serviceId: 'dual',
+      serviceId1: dualSelect1.value,
+      serviceId2: dualSelect2.value
+    });
+    applyDualPrice();
+  }
+  dualSelect1.addEventListener('change', onDualChange);
+  dualSelect2.addEventListener('change', onDualChange);
+
+  dualWrap.appendChild(dualSelect1);
+  dualWrap.appendChild(dualSelect2);
+  serviceCol.appendChild(serviceSelect);
+  serviceCol.appendChild(dualWrap);
+  syncDualUI();
 
   row.appendChild(timeCol);
   row.appendChild(clientCol);
   row.appendChild(priceInput);
-  row.appendChild(serviceSelect);
+  row.appendChild(serviceCol);
   return row;
 }
 
@@ -333,7 +412,7 @@ function createDayCol(date, isWeekend = false) {
   const slotsHtml = dayEntries.length
     ? dayEntries.map(({ hour, entry }) => {
         const mins = entry.minutes ? `:${entry.minutes}` : '';
-        const svc = entry.serviceId ? ` <i>${escapeHtml(serviceLabel(entry.serviceId))}</i>` : '';
+        const svc = entry.serviceId ? ` <i>${escapeHtml(formatServiceLabel(entry))}</i>` : '';
         const price = entry.price ? ` <em>${entry.price}</em>` : '';
         return `<div class="slot-line"><b>${hour}${mins}</b> ${escapeHtml(entry.contactName)}${svc}${price}</div>`;
       }).join('')
@@ -363,17 +442,32 @@ function getDayEntries(date) {
     .filter(({ entry }) => entry.contactName || entry.serviceId || entry.minutes || entry.price);
 }
 
-function serviceLabel(serviceId) {
-  return SERVICES.find((s) => s.id === serviceId)?.label || '';
+function formatServiceLabel(entry) {
+  if (entry.serviceId === 'dual') {
+    const l1 = SERVICES.find((s) => s.id === entry.serviceId1)?.label;
+    const l2 = SERVICES.find((s) => s.id === entry.serviceId2)?.label;
+    if (l1 && l2) return `${l1}+${l2}`;
+    if (l1 || l2) return l1 || l2;
+    return '2';
+  }
+  return SERVICES.find((s) => s.id === entry.serviceId)?.label || '';
+}
+
+function servicePrice(serviceId) {
+  return SERVICES.find((s) => s.id === serviceId)?.price || 0;
 }
 
 function getEntry(key) {
-  return entries[key] || { minutes: '', contactName: '', contactPhone: '', serviceId: '', price: '' };
+  return entries[key] || {
+    minutes: '', contactName: '', contactPhone: '',
+    serviceId: '', serviceId1: '', serviceId2: '', price: ''
+  };
 }
 
 function updateEntry(key, patch) {
   const next = { ...getEntry(key), ...patch };
   const empty = !next.contactName && !next.contactPhone && !next.serviceId &&
+    !next.serviceId1 && !next.serviceId2 &&
     !next.price && (next.minutes === '' || next.minutes == null);
   if (empty) delete entries[key];
   else entries[key] = next;
@@ -490,19 +584,25 @@ function loadEntries() {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     if (Object.keys(raw).length) return raw;
-    const old = JSON.parse(localStorage.getItem('ezhnedevnik.entries.v3') || '{}');
-    const migrated = {};
-    Object.entries(old).forEach(([key, val]) => {
-      const svc = SERVICES.find((s) => s.id === val.serviceId);
-      migrated[key] = {
-        minutes: val.minutes || '',
-        contactName: val.contactName || '',
-        contactPhone: val.contactPhone || '',
-        serviceId: val.serviceId || '',
-        price: svc?.price || ''
-      };
-    });
-    return migrated;
+    for (const oldKey of ['ezhnedevnik.entries.v4', 'ezhnedevnik.entries.v3']) {
+      const old = JSON.parse(localStorage.getItem(oldKey) || '{}');
+      if (!Object.keys(old).length) continue;
+      const migrated = {};
+      Object.entries(old).forEach(([key, val]) => {
+        const svc = SERVICES.find((s) => s.id === val.serviceId);
+        migrated[key] = {
+          minutes: val.minutes || '',
+          contactName: val.contactName || '',
+          contactPhone: val.contactPhone || '',
+          serviceId: val.serviceId || '',
+          serviceId1: val.serviceId1 || '',
+          serviceId2: val.serviceId2 || '',
+          price: val.price || svc?.price || ''
+        };
+      });
+      return migrated;
+    }
+    return {};
   } catch { return {}; }
 }
 

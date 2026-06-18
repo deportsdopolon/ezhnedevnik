@@ -1,4 +1,4 @@
-const CACHE = 'alenanails-v10';
+const CACHE = 'alenanails-v11';
 const ASSETS = [
   './',
   './index.html',
