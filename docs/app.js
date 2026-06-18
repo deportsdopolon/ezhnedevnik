@@ -70,7 +70,7 @@ function render() {
 }
 
 function bannerHTML() {
-  return `<div class="banner-bg"><img src="logo-banner.png?v=5" alt="АлёнаNails" class="banner-img"></div>`;
+  return `<div class="banner-bg"><img src="logo-banner.png?v=6" alt="АлёнаNails" class="banner-img"></div>`;
 }
 
 function renderDayView() {
