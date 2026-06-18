@@ -1,4 +1,4 @@
-const CACHE = 'alenanails-v11';
+const CACHE = 'alenanails-v12';
 const ASSETS = [
   './',
   './index.html',
@@ -10,6 +10,8 @@ const ASSETS = [
   './icon-192.png',
   './icon-512.png'
 ];
+
+const NETWORK_FIRST = ['app.js', 'style.css', 'index.html', 'logo-banner.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
@@ -25,6 +27,24 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
+  const path = new URL(event.request.url).pathname;
+  const networkFirst = NETWORK_FIRST.some((name) => path.endsWith(name));
+
+  if (networkFirst) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );

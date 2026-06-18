@@ -55,7 +55,7 @@ document.getElementById('dismissHint').addEventListener('click', () => {
 setupPinchZoom();
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=12').catch(() => {});
 }
 
 if (!localStorage.getItem(HINT_KEY) && !window.navigator.standalone) {
@@ -72,7 +72,7 @@ function render() {
 }
 
 function bannerHTML() {
-  return `<div class="banner-bg"><img src="logo-banner.png?v=7" alt="АлёнаNails" class="banner-img"></div>`;
+  return `<div class="banner-bg"><img src="logo-banner.png?v=12" alt="АлёнаNails" class="banner-img"></div>`;
 }
 
 function renderDayView() {
