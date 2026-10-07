@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="АлёнаNails">
+  <meta name="application-name" content="АлёнаNails">
+  <meta name="theme-color" content="#fff5f9">
+  <title>АлёнаNails</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-alena-180.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icon-alena-152.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="icon-alena-167.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icon-alena-180.png">
+  <link rel="icon" href="icon-alena-192.png" type="image/png">
+  <link rel="stylesheet" href="style.css?v=19">
+</head>
+<body>
+  <div id="app" data-mode="day">
+    <div id="appBanner" class="app-banner"></div>
+
+    <section id="statsBar" class="stats-bar" aria-label="Статистика"></section>
+
+    <header class="top-bar">
+      <button id="prevBtn" class="icon-btn" aria-label="Назад">‹</button>
+      <div id="topSubtitle" class="top-subtitle"></div>
+      <div class="top-actions">
+        <button id="monthBtn" class="month-btn" aria-label="Выбрать дату">📅</button>
+        <button id="settingsBtn" class="icon-btn settings-btn" aria-label="Настройки цен">⚙</button>
+        <button id="nextBtn" class="icon-btn" aria-label="Вперёд">›</button>
+      </div>
+    </header>
+
+    <div id="dayView" class="day-view">
+      <div id="dayHeader" class="day-header-card"></div>
+      <div id="hoursList" class="hours-list"></div>
+    </div>
+
+    <div id="overviewView" class="overview-view hidden">
+      <div id="overviewHint" class="overview-hint"></div>
+      <div id="overviewGrid" class="overview-grid"></div>
+    </div>
+  </div>
+
+  <dialog id="monthPicker" class="month-picker">
+    <div class="picker-inner">
+      <div class="picker-head">
+        <button type="button" id="pickerPrevMonth" class="icon-btn small">‹</button>
+        <h3 id="pickerMonthTitle"></h3>
+        <button type="button" id="pickerNextMonth" class="icon-btn small">›</button>
+      </div>
+      <div class="picker-weekdays">
+        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+      </div>
+      <div id="pickerDays" class="picker-days"></div>
+      <button type="button" id="pickerToday" class="secondary-btn full-width">Сегодня</button>
+      <button type="button" id="pickerClose" class="secondary-btn full-width">Закрыть</button>
+    </div>
+  </dialog>
+
+  <dialog id="settingsDialog" class="settings-dialog">
+    <form method="dialog" class="settings-inner">
+      <div class="settings-head">
+        <div>
+          <h3>Настройки</h3>
+          <p>Цены работ</p>
+        </div>
+        <button type="submit" class="icon-btn small" aria-label="Закрыть">×</button>
+      </div>
+      <div id="priceSettings" class="price-settings"></div>
+      <div class="backup-actions">
+        <button type="button" id="exportBtn" class="secondary-btn">Сохранить копию</button>
+        <label class="secondary-btn import-label">Восстановить<input id="importInput" type="file" accept="application/json"></label>
+      </div>
+      <button type="submit" class="primary-btn full-width">Готово</button>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <div id="installHint" class="install-hint hidden">
+    <p>Safari → <strong>Поделиться</strong> → <strong>На экран «Домой»</strong></p>
+    <button id="dismissHint" class="secondary-btn">Понятно</button>
+  </div>
+
+  <script src="app.js?v=19"></script>
+</body>
+</html>
